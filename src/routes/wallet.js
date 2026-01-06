@@ -56,6 +56,22 @@ router.post('/transfer', async (req, res) => {
     transaction.status = 'completed';
     await transaction.save();
 
+    // Send email notifications (debit to sender, credit to recipient)
+    try {
+      const mailer = require('../utils/mailer');
+      const fromBalance = fromUser.balance;
+      const toBalance = toUser.balance;
+      // sendTransferEmails expects the final balances (after update)
+      mailer.sendTransferEmails({ transaction, fromUser, toUser, fromBalance, toBalance })
+        .then(results => {
+          // results contains settled promises for debit and credit sends
+          // log for debugging
+          console.info('Email send results:', results);
+        }).catch(err => console.error('Email send error:', err));
+    } catch (err) {
+      console.error('Failed to send transaction emails:', err);
+    }
+
     res.json({ message: 'Transfer successful', transaction });
   } catch (error) {
     res.status(500).json({ message: error.message });
