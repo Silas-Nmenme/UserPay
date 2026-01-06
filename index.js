@@ -12,7 +12,8 @@ const PORT = process.env.PORT || 5000;
 const connectDB = require('./src/config/db');
 
 // Import routes
-const authRoutes = require('./src/routes/auth');
+const authMiddleware = require('./src/routes/auth');
+const userRoutes = require('./src/routes/user');
 const walletRoutes = require('./src/routes/wallet');
 
 // Middleware
@@ -26,8 +27,11 @@ app.set('view engine', 'ejs');
 app.set('views', './views');
 
 // Routes
-app.use('/auth', authRoutes);
-app.use('/wallet', walletRoutes);
+// Public auth endpoints (register/login/verify)
+app.use('/auth', userRoutes);
+
+// Protected wallet endpoints
+app.use('/wallet', authMiddleware, walletRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

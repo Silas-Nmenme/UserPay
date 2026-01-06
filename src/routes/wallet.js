@@ -5,24 +5,11 @@ const Transaction = require('../models/Transaction');
 
 const router = express.Router();
 
-// Middleware to verify JWT token
-const authenticateToken = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ message: 'Access denied' });
-
-  try {
-    const verified = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = verified;
-    next();
-  } catch (error) {
-    res.status(400).json({ message: 'Invalid token' });
-  }
-};
-
 // Get wallet balance
-router.get('/balance', authenticateToken, async (req, res) => {
+// This route expects `req.user` to be set by the central auth middleware.
+router.get('/balance', async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user._id || req.user.userId);
     res.json({ balance: user.balance, username: user.username });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -30,7 +17,7 @@ router.get('/balance', authenticateToken, async (req, res) => {
 });
 
 // Transfer funds
-router.post('/transfer', authenticateToken, async (req, res) => {
+router.post('/transfer', async (req, res) => {
   try {
     const { toUsername, amount } = req.body;
 
@@ -38,7 +25,7 @@ router.post('/transfer', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Invalid amount' });
     }
 
-    const fromUser = await User.findById(req.user.userId);
+    const fromUser = await User.findById(req.user._id || req.user.userId);
     const toUser = await User.findOne({ username: toUsername });
 
     if (!toUser) {
@@ -71,14 +58,63 @@ router.post('/transfer', authenticateToken, async (req, res) => {
   }
 });
 
-// Get transaction history
-router.get('/transactions', authenticateToken, async (req, res) => {
+// Demo top-up: increases authenticated user's balance and records a deposit transaction
+router.post('/topup', async (req, res) => {
   try {
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid amount' });
+    }
+
+    const userId = req.user._id || req.user.userId;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // For demo top-up, treat the deposit as coming from the same user (or system)
+    const transaction = new Transaction({
+      fromUser: user._id,
+      toUser: user._id,
+      amount,
+      type: 'deposit',
+      status: 'completed'
+    });
+
+    user.balance += amount;
+
+    await transaction.save();
+    await user.save();
+
+    res.json({ message: 'Top-up successful', balance: user.balance, transaction });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get transaction history
+router.get('/transactions', async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.userId;
     const transactions = await Transaction.find({
-      $or: [{ fromUser: req.user.userId }, { toUser: req.user.userId }]
+      $or: [{ fromUser: userId }, { toUser: userId }]
     }).populate('fromUser', 'username').populate('toUser', 'username').sort({ createdAt: -1 });
 
     res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get top-up (deposit) transaction history for the authenticated user
+router.get('/transactions/topups', async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.userId;
+    const topups = await Transaction.find({
+      type: 'deposit',
+      $or: [{ fromUser: userId }, { toUser: userId }]
+    }).populate('fromUser', 'username').populate('toUser', 'username').sort({ createdAt: -1 });
+
+    res.json(topups);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
