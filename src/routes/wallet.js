@@ -19,9 +19,10 @@ router.get('/balance', async (req, res) => {
 // Transfer funds
 router.post('/transfer', async (req, res) => {
   try {
-    const { toUsername, amount } = req.body;
+    const { toUsername } = req.body;
+    const amount = Number(req.body.amount);
 
-    if (amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ message: 'Invalid amount' });
     }
 
@@ -32,7 +33,7 @@ router.post('/transfer', async (req, res) => {
       return res.status(404).json({ message: 'Recipient not found' });
     }
 
-    if (fromUser.balance < amount) {
+    if (Number(fromUser.balance) < amount) {
       return res.status(400).json({ message: 'Insufficient balance' });
     }
 
@@ -44,13 +45,16 @@ router.post('/transfer', async (req, res) => {
       type: 'transfer'
     });
 
-    // Update balances
-    fromUser.balance -= amount;
-    toUser.balance += amount;
+    // Update balances using numeric arithmetic to avoid string concat
+    fromUser.balance = Number(fromUser.balance) - amount;
+    toUser.balance = Number(toUser.balance) + amount;
 
-    await transaction.save();
+    // Save users first, then mark transaction completed and save it
     await fromUser.save();
     await toUser.save();
+
+    transaction.status = 'completed';
+    await transaction.save();
 
     res.json({ message: 'Transfer successful', transaction });
   } catch (error) {
@@ -61,9 +65,10 @@ router.post('/transfer', async (req, res) => {
 // Demo top-up: increases authenticated user's balance and records a deposit transaction
 router.post('/topup', async (req, res) => {
   try {
-    const { amount } = req.body;
 
-    if (!amount || amount <= 0) {
+    const amount = Number(req.body.amount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ message: 'Invalid amount' });
     }
 
@@ -72,6 +77,7 @@ router.post('/topup', async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     // For demo top-up, treat the deposit as coming from the same user (or system)
+
     const transaction = new Transaction({
       fromUser: user._id,
       toUser: user._id,
@@ -80,7 +86,7 @@ router.post('/topup', async (req, res) => {
       status: 'completed'
     });
 
-    user.balance += amount;
+    user.balance = Number(user.balance) + amount;
 
     await transaction.save();
     await user.save();
@@ -105,19 +111,5 @@ router.get('/transactions', async (req, res) => {
   }
 });
 
-// Get top-up (deposit) transaction history for the authenticated user
-router.get('/transactions/topups', async (req, res) => {
-  try {
-    const userId = req.user._id || req.user.userId;
-    const topups = await Transaction.find({
-      type: 'deposit',
-      $or: [{ fromUser: userId }, { toUser: userId }]
-    }).populate('fromUser', 'username').populate('toUser', 'username').sort({ createdAt: -1 });
-
-    res.json(topups);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 module.exports = router;
