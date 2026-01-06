@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const { body, validationResult } = require('express-validator');
+const ensureSystemUser = require('../utils/systemUser');
 
 const router = express.Router();
 
@@ -18,13 +20,15 @@ router.get('/balance', async (req, res) => {
 });
 
 // Transfer funds
-router.post('/transfer', async (req, res) => {
+router.post('/transfer', [
+  body('toUsername').isString().notEmpty(),
+  body('amount').isFloat({ gt: 0 })
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   const { toUsername } = req.body;
   const amount = Number(req.body.amount);
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return res.status(400).json({ message: 'Invalid amount' });
-  }
 
   const session = await mongoose.startSession();
   let savedTransaction = null;
@@ -127,12 +131,11 @@ router.post('/transfer', async (req, res) => {
 });
 
 // Demo top-up: increases authenticated user's balance and records a deposit transaction
-router.post('/topup', async (req, res) => {
-  const amount = Number(req.body.amount);
+router.post('/topup', [ body('amount').isFloat({ gt: 0 }) ], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return res.status(400).json({ message: 'Invalid amount' });
-  }
+  const amount = Number(req.body.amount);
 
   const session = await mongoose.startSession();
   let savedTransaction = null;
@@ -143,12 +146,15 @@ router.post('/topup', async (req, res) => {
       if (!user) throw new Error('User not found');
 
       // Support SYSTEM_USER_ID as the source of deposits (recommended)
-      const systemUserId = process.env.SYSTEM_USER_ID;
       let fromUserId = user._id;
-      if (systemUserId) {
+      if (process.env.SYSTEM_USER_ID) {
         // verify system user exists
-        const sys = await User.findById(systemUserId).session(session);
+        const sys = await User.findById(process.env.SYSTEM_USER_ID).session(session);
         if (!sys) throw new Error('SYSTEM_USER_ID not found');
+        fromUserId = sys._id;
+      } else {
+        // ensure a system user exists (auto-create if missing)
+        const sys = await ensureSystemUser(session);
         fromUserId = sys._id;
       }
 

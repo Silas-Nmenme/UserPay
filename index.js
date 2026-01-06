@@ -38,6 +38,9 @@ app.get('/', (req, res) => {
   res.render('index', { title: 'UserPay' });
 });
 
+// Error handler (should be after routes)
+app.use(require('./src/middleware/errorHandler'));
+
 // Start server
 connectDB().then(() => {
   app.listen(PORT, () => {
