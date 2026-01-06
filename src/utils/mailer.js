@@ -8,9 +8,27 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-function bootstrapEmailTemplate({ title, heading, lines, cta }) {
+function bootstrapEmailTemplate({ title, heading, lines, cta, type = 'default' }) {
   const bootstrapCdn = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';
   const itemsHtml = (lines || []).map(l => `<p class="mb-1">${l}</p>`).join('');
+
+  // Type-specific styling
+  let gradientBg = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
+  let cardBg = 'rgba(255, 255, 255, 0.9)';
+  let icon = '';
+  let iconColor = '#6c757d';
+
+  if (type === 'debit') {
+    gradientBg = 'linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%)';
+    cardBg = 'rgba(255, 255, 255, 0.95)';
+    icon = '💸'; // Debit icon
+    iconColor = '#dc3545';
+  } else if (type === 'credit') {
+    gradientBg = 'linear-gradient(135deg, #e6ffe6 0%, #ccffcc 100%)';
+    cardBg = 'rgba(255, 255, 255, 0.95)';
+    icon = '💰'; // Credit icon
+    iconColor = '#28a745';
+  }
 
   return `<!doctype html>
   <html>
@@ -19,13 +37,54 @@ function bootstrapEmailTemplate({ title, heading, lines, cta }) {
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <link href="${bootstrapCdn}" rel="stylesheet">
       <title>${title}</title>
+      <style>
+        body {
+          background: ${gradientBg};
+          animation: fadeIn 1s ease-in;
+        }
+        .card {
+          background: ${cardBg};
+          backdrop-filter: blur(10px);
+          border: none;
+          animation: slideIn 0.8s ease-out;
+        }
+        .icon {
+          font-size: 3rem;
+          color: ${iconColor};
+          animation: bounce 1.5s infinite;
+        }
+        .card-title {
+          animation: fadeInUp 0.6s ease-out 0.3s both;
+        }
+        .card-body p {
+          animation: fadeInUp 0.6s ease-out 0.5s both;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideIn {
+          from { transform: translateY(-20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeInUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes bounce {
+          0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-10px); }
+          60% { transform: translateY(-5px); }
+        }
+      </style>
     </head>
-    <body class="bg-light">
+    <body>
       <div class="container py-4">
         <div class="row justify-content-center">
           <div class="col-md-8">
-            <div class="card shadow-sm">
-              <div class="card-body">
+            <div class="card shadow-lg">
+              <div class="card-body text-center">
+                <div class="icon mb-3">${icon}</div>
                 <h4 class="card-title mb-3">${heading}</h4>
                 <div class="mb-3">${itemsHtml}</div>
                 ${cta ? `<div class="mt-3">${cta}</div>` : ''}
@@ -84,7 +143,8 @@ async function sendTransferEmails({ transaction, fromUser, toUser, fromBalance, 
       `<strong>New Balance:</strong> ₦${Number(toBalance).toLocaleString()}<br>`,
       `Enjoy your funds and continue using UserPay for seamless transactions!`,
       `If you have any questions, feel free to reach out to our support team.`
-    ]
+    ],
+    type: 'credit'
   });
 
   const sendDebit = sendMail({ to: fromUser.email, subject: 'UserPay - Debit Alert', html: debitHtml });
