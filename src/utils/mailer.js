@@ -47,30 +47,43 @@ async function sendMail({ from = process.env.EMAIL_USER, to, subject, html }) {
 
 async function sendTransferEmails({ transaction, fromUser, toUser, fromBalance, toBalance }) {
   const amount = transaction.amount;
+  const transactionDate = new Date(transaction.createdAt).toLocaleString();
 
   // Debit email to sender
   const debitHtml = bootstrapEmailTemplate({
     title: 'Debit Alert - UserPay',
-    heading: 'Debit Notification',
+    heading: 'Funds Sent Successfully',
     lines: [
       `Dear ${fromUser.username},`,
-      `You sent <strong>₦${amount}</strong> to <strong>${toUser.username}</strong>.`,
-      `Transaction ID: <code>${transaction._id}</code>`,
-      `Previous balance: <strong>₦${(Number(fromBalance) + Number(amount)).toLocaleString()}</strong>`,
-      `New balance: <strong>₦${Number(fromBalance).toLocaleString()}</strong>`
+      `Thank you for using UserPay! Your account has been debited for a transfer.`,
+      `<strong>Transaction Details:</strong><br>`,
+      `<strong>Amount Sent:</strong> ₦${amount.toLocaleString()}<br>`,
+      `<strong>Recipient:</strong> ${toUser.username}<br>`,
+      `<strong>Transaction ID:</strong> ${transaction._id}<br>`,
+      `<strong>Date & Time:</strong> ${transactionDate}<br>`,
+      `<strong>Previous Balance:</strong> ₦${(Number(fromBalance) + Number(amount)).toLocaleString()}<br>`,
+      `<strong>New Balance:</strong> ₦${Number(fromBalance).toLocaleString()}<br>`,
+      `If you did not authorize this transaction, please contact our support team immediately at support@userpay.com.`,
+      `We appreciate your trust in UserPay for your financial needs.`
     ]
   });
 
   // Credit email to recipient
   const creditHtml = bootstrapEmailTemplate({
     title: 'Credit Alert - UserPay',
-    heading: 'Credit Notification',
+    heading: 'Funds Received!',
     lines: [
       `Dear ${toUser.username},`,
-      `You received <strong>₦${amount}</strong> from <strong>${fromUser.username}</strong>.`,
-      `Transaction ID: <code>${transaction._id}</code>`,
-      `Previous balance: <strong>₦${(Number(toBalance) - Number(amount)).toLocaleString()}</strong>`,
-      `New balance: <strong>₦${Number(toBalance).toLocaleString()}</strong>`
+      `Great news! You've received funds in your UserPay account.`,
+      `<strong>Transaction Details:</strong><br>`,
+      `<strong>Amount Received:</strong> ₦${amount.toLocaleString()}<br>`,
+      `<strong>Sender:</strong> ${fromUser.username}<br>`,
+      `<strong>Transaction ID:</strong> ${transaction._id}<br>`,
+      `<strong>Date & Time:</strong> ${transactionDate}<br>`,
+      `<strong>Previous Balance:</strong> ₦${(Number(toBalance) - Number(amount)).toLocaleString()}<br>`,
+      `<strong>New Balance:</strong> ₦${Number(toBalance).toLocaleString()}<br>`,
+      `Enjoy your funds and continue using UserPay for seamless transactions!`,
+      `If you have any questions, feel free to reach out to our support team.`
     ]
   });
 
