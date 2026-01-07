@@ -26,7 +26,7 @@ exports.register = async (req, res) => {
 
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
-    const user = new User({ username, email, password, verificationToken });
+    const user = new User({ username, email, password, verificationToken, verificationTokenExpires: Date.now() + 10 * 60 * 1000 });
     await user.save();
 
     const verificationUrl = `${process.env.BASE_URL}/auth/verify/${verificationToken}`;
@@ -47,13 +47,44 @@ exports.register = async (req, res) => {
 exports.verify = async (req, res) => {
   try {
     const user = await User.findOne({ verificationToken: req.params.token });
-    if (!user) return res.status(400).json({ message: 'Invalid token' });
+    if (!user || user.verificationTokenExpires < Date.now()) return res.status(400).json({ message: 'Invalid or expired token' });
 
     user.isVerified = true;
     user.verificationToken = undefined;
+    user.verificationTokenExpires = undefined;
     await user.save();
 
     res.json({ message: 'Account verified successfully' });
+  } catch (error) {
+    console.error(error && error.stack ? error.stack : error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.resendVerificationToken = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.isVerified) return res.status(400).json({ message: 'User is already verified' });
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpires = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    const verificationUrl = `${process.env.BASE_URL}/auth/verify/${verificationToken}`;
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify your UserPay account',
+      html: `<p>Click <a href="${verificationUrl}">here</a> to verify your account.</p>`
+    });
+
+    res.json({ message: 'Verification email resent. Check your email.' });
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
     res.status(500).json({ message: error.message });

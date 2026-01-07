@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   verificationToken: String,
+  verificationTokenExpires: Date,
   balance: {
     type: Number,
     default: 0
