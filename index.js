@@ -26,7 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // ===== CORS Setup =====
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://userpay.vercel.app";
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://userpay.netlify.app";
 app.use(cors({
   origin: FRONTEND_URL,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
