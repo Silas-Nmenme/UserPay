@@ -1,9 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Authentication middleware: verifies JWT and attaches `req.user`.
-// Use this middleware on routes that require authentication, e.g.
-// app.use('/wallet', require('./auth'), walletRoutes);
+
 module.exports = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
