@@ -18,11 +18,23 @@ const userRoutes = require('./src/routes/user');
 const walletRoutes = require('./src/routes/wallet');
 
 // Middleware
-app.use(cors({ origin: 'https://userpay.netlify.app' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+// serve static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+
+// CORS configuration
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://userpay.netlify.app";
+app.use(cors({
+  origin: FRONTEND_URL,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
+
 
 // Set view engine
 app.set('view engine', 'ejs');
@@ -52,6 +64,7 @@ app.use(require('./src/middleware/errorHandler'));
 connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`Allowed frontend origin: ${FRONTEND_URL}`);
   });
 }).catch((error) => {
   console.error("MongoDB Connection Failed:", error.message);
