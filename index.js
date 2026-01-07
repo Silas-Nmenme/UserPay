@@ -35,7 +35,7 @@ app.use('/wallet', authMiddleware, walletRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
-  res.render('index', { title: 'UserPay' });
+  res.send('Welcome to UserPay API');
 });
 
 // Error handler (should be after routes)
