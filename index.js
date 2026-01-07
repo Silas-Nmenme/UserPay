@@ -29,7 +29,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // CORS configuration
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://userpay.netlify.app";
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: [FRONTEND_URL, "https://userpay.netlify.app" ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -45,7 +45,7 @@ app.set('views', './views');
 app.use('/auth', userRoutes);
 
 // Protected wallet endpoints
-app.use('/wallet', authMiddleware, walletRoutes);
+app.use('/api/wallet', authMiddleware, walletRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
