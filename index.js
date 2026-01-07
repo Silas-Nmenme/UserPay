@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const cors = require('cors');
+const path = require('path');
 
 dotenv.config();
 
@@ -17,10 +18,11 @@ const userRoutes = require('./src/routes/user');
 const walletRoutes = require('./src/routes/wallet');
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: 'https://userpay.netlify.app' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Set view engine
 app.set('view engine', 'ejs');
@@ -35,7 +37,12 @@ app.use('/wallet', authMiddleware, walletRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
-  res.send('Welcome to UserPay API');
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.render('index', { title: 'UserPay' });
+  }
 });
 
 // Error handler (should be after routes)
