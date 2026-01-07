@@ -17,7 +17,27 @@ exports.register = async (req, res) => {
     const { email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: 'User already exists' });
+    if (existingUser) {
+      if (!existingUser.isVerified) {
+        // Resend verification email for unverified users
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        existingUser.verificationToken = verificationToken;
+        existingUser.verificationTokenExpires = Date.now() + 10 * 60 * 1000;
+        await existingUser.save();
+
+        const verificationUrl = `${process.env.BASE_URL}/auth/verify/${verificationToken}`;
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: 'Verify your UserPay account',
+          html: `<p>Click <a href="${verificationUrl}">here</a> to verify your account.</p>`
+        });
+
+        return res.status(200).json({ message: 'Verification email resent. Check your email for verification.' });
+      } else {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+    }
 
     let username;
     do {
