@@ -20,20 +20,30 @@ const walletRoutes = require('./src/routes/wallet');
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
 
-// serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+// CORS configuration - allow multiple origins and provide helpful dev defaults
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://userpay.netlify.app';
+const allowedOrigins = [FRONTEND_URL, 'https://userpay.netlify.app', 'http://localhost:8080', 'http://localhost:3000'];
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') console.log('Incoming request origin:', req.headers.origin);
+  next();
+});
 
-
-// CORS configuration
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://userpay.netlify.app";
 app.use(cors({
-  origin: [FRONTEND_URL, "https://userpay.netlify.app" ],
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  origin: function(origin, callback){
+    // allow requests with no origin (e.g., mobile apps, curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+    return callback(new Error('CORS policy: Origin not allowed'));
+  },
+  methods: ['GET','POST','PUT','DELETE','PATCH'],
+  allowedHeaders: ['Content-Type','Authorization'],
   credentials: true,
 }));
+
+// serve static files (after CORS so static requests are checked too)
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 // Set view engine
@@ -43,9 +53,13 @@ app.set('views', './views');
 // Routes
 // Public auth endpoints (register/login/verify)
 app.use('/auth', userRoutes);
+// also mount at /user for frontend compatibility
+app.use('/user', userRoutes);
 
 // Protected wallet endpoints
 app.use('/api/wallet', authMiddleware, walletRoutes);
+// also mount at /wallet for frontend compatibility
+app.use('/wallet', authMiddleware, walletRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
