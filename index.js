@@ -19,33 +19,19 @@ const walletRoutes = require('./src/routes/wallet');
 
 // Middleware
 app.use(express.json());
+app.use(morgan("dev")); 
+
 app.use(express.urlencoded({ extended: true }));
-if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
 
-// CORS configuration - allow multiple origins and provide helpful dev defaults
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://userpay.netlify.app';
-// Ensure the exact frontend origin is explicitly allowed and deduplicate entries
-const allowedOrigins = Array.from(new Set([
-  'https://userpay.netlify.app',
-  FRONTEND_URL,
-  'http://localhost:8080',
-  'http://localhost:3000'
-].filter(Boolean)));
-app.use((req, res, next) => {
-  if (process.env.NODE_ENV !== 'production') console.log('Incoming request origin:', req.headers.origin);
-  next();
-});
 
+
+// ===== CORS Setup =====
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://userpay.netlify.app";
 app.use(cors({
-  origin: function(origin, callback){
-    // allow requests with no origin (e.g., mobile apps, curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
-    return callback(new Error('CORS policy: Origin not allowed'));
-  },
-  methods: ['GET','POST','PUT','DELETE','PATCH'],
-  allowedHeaders: ['Content-Type','Authorization'],
-  credentials: true,
+  origin: FRONTEND_URL,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
 
 // serve static files (after CORS so static requests are checked too)
@@ -59,22 +45,14 @@ app.set('views', './views');
 // Routes
 // Public auth endpoints (register/login/verify)
 app.use('/auth', userRoutes);
-// also mount at /user for frontend compatibility
-app.use('/user', userRoutes);
 
 // Protected wallet endpoints
 app.use('/api/wallet', authMiddleware, walletRoutes);
-// also mount at /wallet for frontend compatibility
-app.use('/wallet', authMiddleware, walletRoutes);
+
 
 // Basic route
 app.get('/', (req, res) => {
-  const indexPath = path.join(__dirname, 'public', 'index.html');
-  if (require('fs').existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.render('index', { title: 'UserPay' });
-  }
+  res.send('Welcome to the UserPay API');
 });
 
 // Error handler (should be after routes)
