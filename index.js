@@ -24,7 +24,13 @@ if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
 
 // CORS configuration - allow multiple origins and provide helpful dev defaults
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://userpay.netlify.app';
-const allowedOrigins = [FRONTEND_URL, 'https://userpay.netlify.app', 'http://localhost:8080', 'http://localhost:3000'];
+// Ensure the exact frontend origin is explicitly allowed and deduplicate entries
+const allowedOrigins = Array.from(new Set([
+  'https://userpay.netlify.app',
+  FRONTEND_URL,
+  'http://localhost:8080',
+  'http://localhost:3000'
+].filter(Boolean)));
 app.use((req, res, next) => {
   if (process.env.NODE_ENV !== 'production') console.log('Incoming request origin:', req.headers.origin);
   next();
