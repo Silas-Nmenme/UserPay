@@ -153,4 +153,52 @@ async function sendTransferEmails({ transaction, fromUser, toUser, fromBalance, 
   return Promise.allSettled([sendDebit, sendCredit]);
 }
 
-module.exports = { sendMail, sendTransferEmails };
+async function sendLoginEmail({ user }) {
+  const loginTime = new Date().toLocaleString();
+
+  const html = bootstrapEmailTemplate({
+    title: 'Login Notification - UserPay',
+    heading: 'Successful Login',
+    lines: [
+      `Dear ${user.username},`,
+      `We noticed a successful login to your UserPay account.`,
+      `<strong>Login Details:</strong><br>`,
+      `<strong>Username:</strong> ${user.username}<br>`,
+      `<strong>Email:</strong> ${user.email}<br>`,
+      `<strong>Login Time:</strong> ${loginTime}<br>`,
+      `<strong>Current Balance:</strong> ₦${Number(user.balance).toLocaleString()}<br>`,
+      `If this was not you, please secure your account immediately by changing your password and contacting support at support@userpay.com.`,
+      `Stay safe and enjoy using UserPay!`
+    ]
+  });
+
+  return sendMail({ to: user.email, subject: 'UserPay - Login Notification', html });
+}
+
+async function sendTopupEmail({ transaction, user, newBalance }) {
+  const amount = transaction.amount;
+  const transactionDate = new Date(transaction.createdAt).toLocaleString();
+  const previousBalance = Number(newBalance) - Number(amount);
+
+  const html = bootstrapEmailTemplate({
+    title: 'Top-up Alert - UserPay',
+    heading: 'Funds Added to Your Account',
+    lines: [
+      `Dear ${user.username},`,
+      `Great news! Your UserPay account has been topped up successfully.`,
+      `<strong>Transaction Details:</strong><br>`,
+      `<strong>Amount Added:</strong> ₦${amount.toLocaleString()}<br>`,
+      `<strong>Transaction ID:</strong> ${transaction._id}<br>`,
+      `<strong>Date & Time:</strong> ${transactionDate}<br>`,
+      `<strong>Previous Balance:</strong> ₦${previousBalance.toLocaleString()}<br>`,
+      `<strong>New Balance:</strong> ₦${Number(newBalance).toLocaleString()}<br>`,
+      `Your funds are now available for use. If you have any questions, feel free to contact our support team.`,
+      `Thank you for choosing UserPay!`
+    ],
+    type: 'credit'
+  });
+
+  return sendMail({ to: user.email, subject: 'UserPay - Top-up Confirmation', html });
+}
+
+module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail };

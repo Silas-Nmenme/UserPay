@@ -90,7 +90,7 @@ router.post('/transfer', [
           transaction.status = 'completed';
           const savedTransaction = await transaction.save();
 
-          // Send emails non-blocking
+        // Send emails non-blocking
           try {
             const mailer = require('../utils/mailer');
             const fromUserFinal = await User.findById(savedTransaction.fromUser);
@@ -192,6 +192,14 @@ router.post('/topup', [ body('amount').isFloat({ gt: 0 }) ], async (req, res) =>
         await user.save();
         const savedTransaction = await transaction.save();
 
+        // Send top-up email notification — non-blocking
+        try {
+          const mailer = require('../utils/mailer');
+          mailer.sendTopupEmail({ transaction: savedTransaction, user, newBalance: user.balance })
+            .then(() => console.info('Top-up email sent (fallback)'))
+            .catch(err => console.error('Top-up email send error (fallback):', err));
+        } catch (e) { console.error('Email error (fallback):', e); }
+
         await session.endSession();
         return res.json({ message: 'Top-up successful', balance: user.balance, transaction: savedTransaction });
       } catch (fallbackErr) {
@@ -205,6 +213,18 @@ router.post('/topup', [ body('amount').isFloat({ gt: 0 }) ], async (req, res) =>
     return res.status(500).json({ message: err.message });
   }
   await session.endSession();
+
+  // Send top-up email notification — non-blocking
+  try {
+    const mailer = require('../utils/mailer');
+    const userFinal = await User.findById(savedTransaction.toUser);
+    const newBalance = userFinal.balance;
+    mailer.sendTopupEmail({ transaction: savedTransaction, user: userFinal, newBalance })
+      .then(() => console.info('Top-up email sent'))
+      .catch(err => console.error('Top-up email send error:', err));
+  } catch (err) {
+    console.error('Failed to send top-up email:', err);
+  }
 
   res.json({ message: 'Top-up successful', balance: (await User.findById(savedTransaction.toUser)).balance, transaction: savedTransaction });
 });

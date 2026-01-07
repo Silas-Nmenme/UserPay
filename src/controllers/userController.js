@@ -75,6 +75,16 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
+    // Send login email notification — non-blocking
+    try {
+      const mailer = require('../utils/mailer');
+      mailer.sendLoginEmail({ user })
+        .then(() => console.info('Login email sent'))
+        .catch(err => console.error('Login email send error:', err));
+    } catch (err) {
+      console.error('Failed to send login email:', err);
+    }
+
     res.json({ token, user: { id: user._id, username: user.username, balance: user.balance } });
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
