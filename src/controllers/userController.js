@@ -161,11 +161,30 @@ exports.login = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ id: user._id, username: user.username, email: user.email, balance: user.balance });
+    // Support both auth styles safely
+    const userId = req.user?.userId || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const user = await User.findById(userId)
+      .select('_id username email balance createdAt');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      balance: user.balance,
+      createdAt: user.createdAt
+    });
   } catch (error) {
-    console.error(error && error.stack ? error.stack : error);
-    res.status(500).json({ message: error.message });
+    console.error('getProfile error:', error);
+    res.status(500).json({ message: 'Failed to fetch user profile' });
   }
 };
+
