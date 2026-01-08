@@ -201,4 +201,22 @@ async function sendTopupEmail({ transaction, user, newBalance }) {
   return sendMail({ to: user.email, subject: 'UserPay - Top-up Confirmation', html });
 }
 
-module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail };
+async function sendOTP({ user, otp }) {
+  const html = bootstrapEmailTemplate({
+    title: 'OTP Verification - UserPay',
+    heading: 'Your One-Time Password',
+    lines: [
+      `Dear ${user.username},`,
+      `You have requested to transfer funds from your UserPay account.`,
+      `For security purposes, please use the following One-Time Password (OTP) to confirm the transaction:`,
+      `<strong style="font-size: 24px; color: #007bff;">${otp}</strong>`,
+      `This OTP is valid for 10 minutes. Do not share this code with anyone.`,
+      `If you did not request this transfer, please ignore this email or contact our support team immediately.`,
+      `Thank you for using UserPay!`
+    ]
+  });
+
+  return sendMail({ to: user.email, subject: 'UserPay - OTP for Transfer Confirmation', html });
+}
+
+module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail, sendOTP };

@@ -25,7 +25,9 @@ const userSchema = new mongoose.Schema({
   balance: {
     type: Number,
     default: 0
-  }
+  },
+  otp: String,
+  otpExpires: Date
 }, { timestamps: true });
 
 // Password hashing is now handled in the controller

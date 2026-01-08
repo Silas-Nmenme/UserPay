@@ -19,8 +19,30 @@ const transferFunds = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { toUsername } = req.body;
+  const { toUsername, password } = req.body;
   const amount = Number(req.body.amount);
+
+  // Verify password
+  const fromUser = await User.findById(req.user._id || req.user.userId);
+  const isPasswordValid = await fromUser.comparePassword(password);
+  if (!isPasswordValid) {
+    return res.status(401).json({ message: 'Invalid password' });
+  }
+
+  // Generate OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  fromUser.otp = otp;
+  fromUser.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  await fromUser.save();
+
+  // Send OTP email
+  try {
+    const mailer = require('../utils/mailer');
+    await mailer.sendOTP({ user: fromUser, otp });
+  } catch (err) {
+    console.error('Failed to send OTP email:', err);
+    return res.status(500).json({ message: 'Failed to send OTP' });
+  }
 
   const session = await mongoose.startSession();
   let savedTransaction = null;
