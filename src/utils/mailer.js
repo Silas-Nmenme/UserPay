@@ -166,7 +166,7 @@ async function sendLoginEmail({ user }) {
       `<strong>Username:</strong> ${user.username}<br>`,
       `<strong>Email:</strong> ${user.email}<br>`,
       `<strong>Login Time:</strong> ${loginTime}<br>`,
-      `<strong>Current Balance:</strong> ₦${Number(user.balance).toLocaleString()}<br>`,
+      `If this was you, you can safely ignore this email.`,
       `If this was not you, please secure your account immediately by changing your password and contacting support at support@userpay.com.`,
       `Stay safe and enjoy using UserPay!`
     ]
