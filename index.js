@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 const connectDB = require('./src/config/db');
 
 // Import routes
-const authMiddleware = require('./src/routes/auth');
+const authMiddleware = require('./src/middleware/auth');
 const userRoutes = require('./src/routes/user');
 const walletRoutes = require('./src/routes/wallet');
 
