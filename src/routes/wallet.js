@@ -14,6 +14,12 @@ router.post('/transfer', [
   body('amount').isFloat({ gt: 0 })
 ], walletController.transferFunds);
 
+// Confirm transfer with OTP
+router.post('/transfer/confirm', [
+  body('transactionId').isMongoId(),
+  body('otp').isLength({ min: 6, max: 6 }).isNumeric()
+], walletController.confirmTransfer);
+
 // Demo top-up: increases authenticated user's balance and records a deposit transaction
 router.post('/topup', [ body('amount').isFloat({ gt: 0 }) ], walletController.topup);
 

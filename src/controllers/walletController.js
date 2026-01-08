@@ -29,6 +29,15 @@ const transferFunds = async (req, res) => {
     return res.status(401).json({ message: 'Invalid password' });
   }
 
+  if (password === fromUser.email) {
+    return res.status(400).json({ message: 'Password cannot be the same as email' });
+  }
+
+  const toUser = await User.findOne({ username: toUsername });
+  if (!toUser) {
+    return res.status(404).json({ message: 'Recipient not found' });
+  }
+
   // Generate OTP
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   fromUser.otp = otp;
@@ -44,31 +53,59 @@ const transferFunds = async (req, res) => {
     return res.status(500).json({ message: 'Failed to send OTP' });
   }
 
+  // Create pending transaction
+  const transaction = new Transaction({
+    fromUser: fromUser._id,
+    toUser: toUser._id,
+    amount,
+    type: 'transfer',
+    status: 'pending'
+  });
+
+  const savedTransaction = await transaction.save();
+
+  res.json({ message: 'Transfer initiated. Please confirm with OTP.', transactionId: savedTransaction._id });
+};
+
+// Confirm transfer with OTP
+const confirmTransfer = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { transactionId, otp } = req.body;
+
+  const userId = req.user._id || req.user.userId;
+  const transaction = await Transaction.findById(transactionId);
+  if (!transaction) {
+    return res.status(404).json({ message: 'Transaction not found' });
+  }
+
+  if (transaction.fromUser.toString() !== userId) {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  if (transaction.status !== 'pending') {
+    return res.status(400).json({ message: 'Transaction is not pending' });
+  }
+
+  const fromUser = await User.findById(transaction.fromUser);
+  if (!fromUser.otp || fromUser.otp !== otp || new Date() > fromUser.otpExpires) {
+    return res.status(401).json({ message: 'Invalid or expired OTP' });
+  }
+
   const session = await mongoose.startSession();
   let savedTransaction = null;
   try {
     await session.withTransaction(async () => {
-      const fromUser = await User.findById(req.user._id || req.user.userId).session(session);
-      const toUser = await User.findOne({ username: toUsername }).session(session);
+      const fromUser = await User.findById(transaction.fromUser).session(session);
+      const toUser = await User.findById(transaction.toUser).session(session);
 
-      if (!toUser) {
-        throw new Error('Recipient not found');
-      }
-
-      if (Number(fromUser.balance) < amount) {
+      if (Number(fromUser.balance) < transaction.amount) {
         throw new Error('Insufficient balance');
       }
 
-      const transaction = new Transaction({
-        fromUser: fromUser._id,
-        toUser: toUser._id,
-        amount,
-        type: 'transfer',
-        status: 'pending'
-      });
-
-      fromUser.balance = Number(fromUser.balance) - amount;
-      toUser.balance = Number(toUser.balance) + amount;
+      fromUser.balance = Number(fromUser.balance) - transaction.amount;
+      toUser.balance = Number(toUser.balance) + transaction.amount;
 
       await fromUser.save({ session });
       await toUser.save({ session });
@@ -76,56 +113,51 @@ const transferFunds = async (req, res) => {
       transaction.status = 'completed';
       savedTransaction = await transaction.save({ session });
     });
-    } catch (err) {
-      // Fallback for standalone MongoDB (no replica set) where transactions are unsupported
-      const msg = err && err.message ? err.message.toLowerCase() : '';
-      if (msg.includes('transaction numbers are only allowed') || msg.includes('not a replica set member') || msg.includes('transactions are not supported')) {
-        try {
-          // Non-transactional fallback: best-effort update
-          const fromUser = await User.findById(req.user._id || req.user.userId);
-          const toUser = await User.findOne({ username: toUsername });
-          if (!toUser) return res.status(404).json({ message: 'Recipient not found' });
-          if (Number(fromUser.balance) < amount) return res.status(400).json({ message: 'Insufficient balance' });
+  } catch (err) {
+    // Fallback for standalone MongoDB
+    const msg = err && err.message ? err.message.toLowerCase() : '';
+    if (msg.includes('transaction numbers are only allowed') || msg.includes('not a replica set member') || msg.includes('transactions are not supported')) {
+      try {
+        const fromUser = await User.findById(transaction.fromUser);
+        const toUser = await User.findById(transaction.toUser);
 
-          const transaction = new Transaction({
-            fromUser: fromUser._id,
-            toUser: toUser._id,
-            amount,
-            type: 'transfer',
-            status: 'pending'
-          });
+        if (Number(fromUser.balance) < transaction.amount) return res.status(400).json({ message: 'Insufficient balance' });
 
-          fromUser.balance = Number(fromUser.balance) - amount;
-          toUser.balance = Number(toUser.balance) + amount;
+        fromUser.balance = Number(fromUser.balance) - transaction.amount;
+        toUser.balance = Number(toUser.balance) + transaction.amount;
 
-          await fromUser.save();
-          await toUser.save();
+        await fromUser.save();
+        await toUser.save();
 
-          transaction.status = 'completed';
-          const savedTransaction = await transaction.save();
+        transaction.status = 'completed';
+        const savedTransaction = await transaction.save();
 
         // Send emails non-blocking
-          try {
-            const mailer = require('../utils/mailer');
-            const fromUserFinal = await User.findById(savedTransaction.fromUser);
-            const toUserFinal = await User.findById(savedTransaction.toUser);
-            mailer.sendTransferEmails({ transaction: savedTransaction, fromUser: fromUserFinal, toUser: toUserFinal, fromBalance: fromUserFinal.balance, toBalance: toUserFinal.balance });
-          } catch (e) { console.error('Email error (fallback):', e); }
+        try {
+          const mailer = require('../utils/mailer');
+          const fromUserFinal = await User.findById(savedTransaction.fromUser);
+          const toUserFinal = await User.findById(savedTransaction.toUser);
+          mailer.sendTransferEmails({ transaction: savedTransaction, fromUser: fromUserFinal, toUser: toUserFinal, fromBalance: fromUserFinal.balance, toBalance: toUserFinal.balance });
+        } catch (e) { console.error('Email error (fallback):', e); }
 
-          await session.endSession();
-          return res.json({ message: 'Transfer successful', transaction: savedTransaction });
-        } catch (fallbackErr) {
-          await session.endSession();
-          return res.status(500).json({ message: fallbackErr.message });
-        }
+        await session.endSession();
+        return res.json({ message: 'Transfer successful', transaction: savedTransaction });
+      } catch (fallbackErr) {
+        await session.endSession();
+        return res.status(500).json({ message: fallbackErr.message });
       }
-
-      await session.endSession();
-      if (err.message === 'Recipient not found') return res.status(404).json({ message: err.message });
-      if (err.message === 'Insufficient balance') return res.status(400).json({ message: err.message });
-      return res.status(500).json({ message: err.message });
     }
+
+    await session.endSession();
+    if (err.message === 'Insufficient balance') return res.status(400).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
+  }
   await session.endSession();
+
+  // Clear OTP
+  fromUser.otp = undefined;
+  fromUser.otpExpires = undefined;
+  await fromUser.save();
 
   // Send email notifications (debit to sender, credit to recipient) — non-blocking
   try {
@@ -260,6 +292,7 @@ const getTransactions = async (req, res) => {
 module.exports = {
   getBalance,
   transferFunds,
+  confirmTransfer,
   topup,
   getTransactions
 };
