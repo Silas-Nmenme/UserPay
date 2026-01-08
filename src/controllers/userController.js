@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const mailer = require('../utils/mailer');
 
 // Salt rounds for password hashing
 const SALT_ROUNDS = 10;
@@ -45,13 +46,7 @@ exports.register = async (req, res) => {
         existingUser.verificationTokenExpires = Date.now() + 10 * 60 * 1000;
         await existingUser.save();
 
-        const verificationUrl = `${process.env.BASE_URL}/auth/verify/${verificationToken}`;
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Verify your UserPay account',
-          html: `<p>Click <a href="${verificationUrl}">here</a> to verify your account.</p>`
-        });
+        await mailer.sendVerificationEmail({ user: existingUser, verificationToken });
 
         return res.status(200).json({ message: 'Verification email resent. Check your email for verification.' });
       } else {
@@ -89,7 +84,8 @@ exports.verify = async (req, res) => {
     user.verificationTokenExpires = undefined;
     await user.save();
 
-    res.json({ message: 'Account verified successfully' });
+    // Redirect to frontend login page after successful verification
+    res.redirect('https://userpay.netlify.app/login');
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
     res.status(500).json({ message: error.message });
@@ -111,13 +107,7 @@ exports.resendVerificationToken = async (req, res) => {
     user.verificationTokenExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    const verificationUrl = `${process.env.BASE_URL}/auth/verify/${verificationToken}`;
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Verify your UserPay account',
-      html: `<p>Click <a href="${verificationUrl}">here</a> to verify your account.</p>`
-    });
+    await mailer.sendVerificationEmail({ user, verificationToken });
 
     res.json({ message: 'Verification email resent. Check your email.' });
   } catch (error) {

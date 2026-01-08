@@ -219,4 +219,21 @@ async function sendOTP({ user, otp }) {
   return sendMail({ to: user.email, subject: 'UserPay - OTP for Transfer Confirmation', html });
 }
 
-module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail, sendOTP };
+async function sendVerificationEmail({ user, verificationToken }) {
+  const verificationUrl = `${process.env.BASE_URL}/auth/verify/${verificationToken}`;
+
+  const html = bootstrapEmailTemplate({
+    title: 'Verify Your UserPay Account',
+    heading: 'Welcome to UserPay!',
+    lines: [
+      `Dear ${user.username},`,
+      `Thank you for registering with UserPay. Please verify your email address to activate your account.`,
+      `Click the button below to verify your account:`
+    ],
+    cta: `<a href="${verificationUrl}" class="btn btn-primary">Verify Account</a>`
+  });
+
+  return sendMail({ to: user.email, subject: 'Verify your UserPay account', html });
+}
+
+module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail, sendOTP, sendVerificationEmail };
