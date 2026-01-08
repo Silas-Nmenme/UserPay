@@ -80,7 +80,7 @@ const confirmTransfer = async (req, res) => {
     return res.status(404).json({ message: 'Transaction not found' });
   }
 
-  if (transaction.fromUser.toString() !== userId) {
+  if (!transaction.fromUser.equals(userId)) {
     return res.status(403).json({ message: 'Unauthorized' });
   }
 
