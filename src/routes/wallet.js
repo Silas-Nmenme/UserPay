@@ -44,6 +44,12 @@ router.post('/crypto/send/confirm', [
 // Get crypto transaction history
 router.get('/crypto/transactions', walletController.getCryptoTransactions);
 
+// Demo crypto top-up: increases authenticated user's crypto balance and records a deposit transaction
+router.post('/crypto/topup', [
+  body('cryptoType').isIn(['BTC', 'ETH', 'USDT']),
+  body('amount').isFloat({ gt: 0 })
+], walletController.cryptoTopup);
+
 // Get transaction history
 router.get('/transactions', walletController.getTransactions);
 

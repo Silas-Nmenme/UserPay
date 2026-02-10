@@ -433,6 +433,47 @@ const getCryptoTransactions = async (req, res) => {
   }
 };
 
+// Demo crypto top-up: increases authenticated user's crypto balance and records a deposit transaction
+const cryptoTopup = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { cryptoType, amount } = req.body;
+  const amountNum = Number(amount);
+
+  try {
+    const user = await User.findById(req.user._id || req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Ensure crypto memo exists, generate if not
+    if (!user.cryptoMemos[cryptoType]) {
+      user.cryptoMemos[cryptoType] = crypto.randomBytes(8).toString('hex');
+      await user.save();
+    }
+
+    // Increase crypto balance
+    user.cryptoBalances[cryptoType] = (user.cryptoBalances[cryptoType] || 0) + amountNum;
+    await user.save();
+
+    // Create crypto transaction
+    const cryptoTransaction = new CryptoTransaction({
+      user: user._id,
+      cryptoType,
+      amount: amountNum,
+      toAddress: user.cryptoAddresses[cryptoType] || 'demo_address',
+      memo: user.cryptoMemos[cryptoType],
+      status: 'completed',
+      txHash: 'demo_' + Math.random().toString(36).substr(2, 9)
+    });
+
+    const savedTransaction = await cryptoTransaction.save();
+
+    res.json({ message: 'Crypto top-up successful', cryptoBalances: user.cryptoBalances, transaction: savedTransaction });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Get transaction history
 const getTransactions = async (req, res) => {
   try {
@@ -456,5 +497,6 @@ module.exports = {
   sendCrypto,
   confirmCryptoSend,
   getCryptoTransactions,
+  cryptoTopup,
   getTransactions
 };
