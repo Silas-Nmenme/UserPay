@@ -26,6 +26,16 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  cryptoBalances: {
+    BTC: { type: Number, default: 0 },
+    ETH: { type: Number, default: 0 },
+    USDT: { type: Number, default: 0 }
+  },
+  cryptoAddresses: {
+    BTC: { type: String },
+    ETH: { type: String },
+    USDT: { type: String }
+  },
   otp: String,
   otpExpires: Date
 }, { timestamps: true });

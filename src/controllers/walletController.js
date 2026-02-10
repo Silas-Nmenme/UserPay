@@ -1,8 +1,12 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const CryptoTransaction = require('../models/CryptoTransaction');
 const { validationResult } = require('express-validator');
 const ensureSystemUser = require('../utils/systemUser');
+const Web3 = require('web3');
+const bitcoin = require('bitcoinjs-lib');
+const TronWeb = require('tronweb');
 
 // Get wallet balance
 const getBalance = async (req, res) => {
@@ -275,6 +279,146 @@ const topup = async (req, res) => {
   res.json({ message: 'Top-up successful', balance: (await User.findById(savedTransaction.toUser)).balance, transaction: savedTransaction });
 };
 
+// Get crypto balances
+const getCryptoBalance = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id || req.user.userId);
+    res.json({ cryptoBalances: user.cryptoBalances, cryptoAddresses: user.cryptoAddresses });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Send crypto
+const sendCrypto = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { cryptoType, toAddress, amount, password } = req.body;
+  const amountNum = Number(amount);
+
+  // Validate crypto type
+  if (!['BTC', 'ETH', 'USDT'].includes(cryptoType)) {
+    return res.status(400).json({ message: 'Invalid crypto type' });
+  }
+
+  // Verify password
+  const user = await User.findById(req.user._id || req.user.userId);
+  const isPasswordValid = await user.comparePassword(password);
+  if (!isPasswordValid) {
+    return res.status(401).json({ message: 'Invalid password' });
+  }
+
+  // Check balance
+  if (user.cryptoBalances[cryptoType] < amountNum) {
+    return res.status(400).json({ message: 'Insufficient crypto balance' });
+  }
+
+  // Generate OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.otp = otp;
+  user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  await user.save();
+
+  // Send OTP email
+  try {
+    const mailer = require('../utils/mailer');
+    await mailer.sendOTP({ user, otp });
+  } catch (err) {
+    console.error('Failed to send OTP email:', err);
+    return res.status(500).json({ message: 'Failed to send OTP' });
+  }
+
+  // Create pending crypto transaction
+  const cryptoTransaction = new CryptoTransaction({
+    user: user._id,
+    cryptoType,
+    amount: amountNum,
+    toAddress,
+    status: 'pending'
+  });
+
+  const savedTransaction = await cryptoTransaction.save();
+
+  res.json({ message: 'Crypto send initiated. Please confirm with OTP.', transactionId: savedTransaction._id });
+};
+
+// Confirm crypto send with OTP
+const confirmCryptoSend = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { transactionId, otp } = req.body;
+
+  const userId = req.user._id || req.user.userId;
+  const cryptoTransaction = await CryptoTransaction.findById(transactionId);
+  if (!cryptoTransaction) {
+    return res.status(404).json({ message: 'Transaction not found' });
+  }
+
+  if (!cryptoTransaction.user.equals(userId)) {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  if (cryptoTransaction.status !== 'pending') {
+    return res.status(400).json({ message: 'Transaction is not pending' });
+  }
+
+  const user = await User.findById(cryptoTransaction.user);
+  if (!user.otp || user.otp !== otp || new Date() > user.otpExpires) {
+    return res.status(401).json({ message: 'Invalid or expired OTP' });
+  }
+
+  // Simulate crypto send (in real implementation, integrate with blockchain)
+  try {
+    let txHash = '';
+    const { cryptoType, toAddress, amount } = cryptoTransaction;
+
+    if (cryptoType === 'BTC') {
+      // Simulate Bitcoin transaction
+      txHash = 'btc_' + Math.random().toString(36).substr(2, 9);
+    } else if (cryptoType === 'ETH') {
+      // Simulate Ethereum transaction
+      txHash = 'eth_' + Math.random().toString(36).substr(2, 9);
+    } else if (cryptoType === 'USDT') {
+      // Simulate USDT transaction
+      txHash = 'usdt_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Update user balance
+    user.cryptoBalances[cryptoType] -= amount;
+    await user.save();
+
+    // Update transaction
+    cryptoTransaction.txHash = txHash;
+    cryptoTransaction.status = 'completed';
+    await cryptoTransaction.save();
+
+    // Clear OTP
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Crypto sent successfully', transaction: cryptoTransaction });
+  } catch (error) {
+    cryptoTransaction.status = 'failed';
+    await cryptoTransaction.save();
+    res.status(500).json({ message: 'Failed to send crypto', error: error.message });
+  }
+};
+
+// Get crypto transaction history
+const getCryptoTransactions = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.userId;
+    const transactions = await CryptoTransaction.find({ user: userId }).sort({ createdAt: -1 });
+
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Get transaction history
 const getTransactions = async (req, res) => {
   try {
@@ -294,5 +438,9 @@ module.exports = {
   transferFunds,
   confirmTransfer,
   topup,
+  getCryptoBalance,
+  sendCrypto,
+  confirmCryptoSend,
+  getCryptoTransactions,
   getTransactions
 };
