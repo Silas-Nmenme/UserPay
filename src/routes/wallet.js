@@ -30,6 +30,7 @@ router.get('/crypto/balance', walletController.getCryptoBalance);
 router.post('/crypto/send', [
   body('cryptoType').isIn(['BTC', 'ETH', 'USDT']),
   body('toAddress').isString().notEmpty(),
+  body('memo').isString().notEmpty(),
   body('amount').isFloat({ gt: 0 }),
   body('password').isString().notEmpty()
 ], walletController.sendCrypto);

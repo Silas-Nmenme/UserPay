@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const CryptoTransaction = require('../models/CryptoTransaction');
@@ -283,7 +284,20 @@ const topup = async (req, res) => {
 const getCryptoBalance = async (req, res) => {
   try {
     const user = await User.findById(req.user._id || req.user.userId);
-    res.json({ cryptoBalances: user.cryptoBalances, cryptoAddresses: user.cryptoAddresses });
+
+    // Generate addresses and memos if not present
+    const cryptoTypes = ['BTC', 'ETH', 'USDT'];
+    cryptoTypes.forEach(type => {
+      if (!user.cryptoAddresses[type]) {
+        user.cryptoAddresses[type] = crypto.randomBytes(20).toString('hex');
+      }
+      if (!user.cryptoMemos[type]) {
+        user.cryptoMemos[type] = crypto.randomBytes(8).toString('hex');
+      }
+    });
+    await user.save();
+
+    res.json({ cryptoBalances: user.cryptoBalances, cryptoAddresses: user.cryptoAddresses, cryptoMemos: user.cryptoMemos });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -294,7 +308,7 @@ const sendCrypto = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { cryptoType, toAddress, amount, password } = req.body;
+  const { cryptoType, toAddress, memo, amount, password } = req.body;
   const amountNum = Number(amount);
 
   // Validate crypto type

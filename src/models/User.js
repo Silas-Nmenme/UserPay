@@ -36,6 +36,11 @@ const userSchema = new mongoose.Schema({
     ETH: { type: String },
     USDT: { type: String }
   },
+  cryptoMemos: {
+    BTC: { type: String },
+    ETH: { type: String },
+    USDT: { type: String }
+  },
   otp: String,
   otpExpires: Date
 }, { timestamps: true });

@@ -19,6 +19,10 @@ const cryptoTransactionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  memo: {
+    type: String,
+    required: true
+  },
   txHash: {
     type: String
   },
