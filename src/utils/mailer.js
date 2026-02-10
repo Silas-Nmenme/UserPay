@@ -201,6 +201,33 @@ async function sendTopupEmail({ transaction, user, newBalance }) {
   return sendMail({ to: user.email, subject: 'UserPay - Top-up Confirmation', html });
 }
 
+async function sendCryptoTopupEmail({ transaction, user, cryptoType, newBalance }) {
+  const amount = transaction.amount;
+  const transactionDate = new Date(transaction.createdAt).toLocaleString();
+  const previousBalance = Number(newBalance) - Number(amount);
+
+  const html = bootstrapEmailTemplate({
+    title: 'Crypto Top-up Alert - UserPay',
+    heading: 'Crypto Funds Added to Your Account',
+    lines: [
+      `Dear ${user.username},`,
+      `Great news! Your UserPay crypto account has been topped up successfully.`,
+      `<strong>Transaction Details:</strong><br>`,
+      `<strong>Crypto Type:</strong> ${cryptoType}<br>`,
+      `<strong>Amount Added:</strong> ${amount.toLocaleString()} ${cryptoType}<br>`,
+      `<strong>Transaction ID:</strong> ${transaction._id}<br>`,
+      `<strong>Date & Time:</strong> ${transactionDate}<br>`,
+      `<strong>Previous Balance:</strong> ${previousBalance.toLocaleString()} ${cryptoType}<br>`,
+      `<strong>New Balance:</strong> ${Number(newBalance).toLocaleString()} ${cryptoType}<br>`,
+      `Your crypto funds are now available for use. If you have any questions, feel free to contact our support team.`,
+      `Thank you for choosing UserPay!`
+    ],
+    type: 'credit'
+  });
+
+  return sendMail({ to: user.email, subject: 'UserPay - Crypto Top-up Confirmation', html });
+}
+
 async function sendOTP({ user, otp }) {
   const html = bootstrapEmailTemplate({
     title: 'OTP Verification - UserPay',
@@ -236,4 +263,4 @@ async function sendVerificationEmail({ user, verificationToken }) {
   return sendMail({ to: user.email, subject: 'Verify your UserPay account', html });
 }
 
-module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail, sendOTP, sendVerificationEmail };
+module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail, sendCryptoTopupEmail, sendOTP, sendVerificationEmail };

@@ -468,6 +468,18 @@ const cryptoTopup = async (req, res) => {
 
     const savedTransaction = await cryptoTransaction.save();
 
+    // Send crypto top-up email notification — non-blocking
+    try {
+      const mailer = require('../utils/mailer');
+      const userFinal = await User.findById(savedTransaction.user);
+      const newBalance = userFinal.cryptoBalances[cryptoType];
+      mailer.sendCryptoTopupEmail({ transaction: savedTransaction, user: userFinal, cryptoType, newBalance })
+        .then(() => console.info('Crypto top-up email sent'))
+        .catch(err => console.error('Crypto top-up email send error:', err));
+    } catch (err) {
+      console.error('Failed to send crypto top-up email:', err);
+    }
+
     res.json({ message: 'Crypto top-up successful', cryptoBalances: user.cryptoBalances, transaction: savedTransaction });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,7 +1,5 @@
-# TODO for Crypto Address and Memo Implementation
+# TODO: Add Email Notification for Crypto Topup
 
-- [x] Update User model (src/models/User.js) to add cryptoMemos for BTC, ETH, USDT
-- [x] Update CryptoTransaction model (src/models/CryptoTransaction.js) to add memo field
-- [x] Update walletController.js: Modify getCryptoBalance to generate addresses and memos if missing
-- [x] Update wallet routes (src/routes/wallet.js): Add memo validation in send crypto route
-- [x] Update sendCrypto in walletController.js to include memo in transaction
+- [x] Add sendCryptoTopupEmail function to src/utils/mailer.js
+- [x] Modify cryptoTopup function in src/controllers/walletController.js to send email after successful topup
+- [ ] Test the email sending functionality (verify email credentials are set)
