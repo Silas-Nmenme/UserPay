@@ -349,8 +349,10 @@ const sendCrypto = async (req, res) => {
     cryptoType,
     amount: amountNum,
     toAddress,
+    memo: memo || null,   // ADD THIS
     status: 'pending'
   });
+  
 
   const savedTransaction = await cryptoTransaction.save();
 
