@@ -42,7 +42,7 @@ router.post('/crypto/send/confirm', [
 ], walletController.confirmCryptoSend);
 
 // Get crypto transaction history
-router.get('/crypto/transactions', walletController.getCryptoTransactions);
+ve
 
 // Demo crypto top-up: increases authenticated user's crypto balance and records a deposit transaction
 router.post('/crypto/topup', [
