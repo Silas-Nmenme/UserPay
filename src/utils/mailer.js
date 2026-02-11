@@ -10,24 +10,37 @@ const transporter = nodemailer.createTransport({
 
 function bootstrapEmailTemplate({ title, heading, lines, cta, type = 'default' }) {
   const bootstrapCdn = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';
-  const itemsHtml = (lines || []).map(l => `<p class="mb-1">${l}</p>`).join('');
+  const googleFonts = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap';
+  const itemsHtml = (lines || []).map(l => `<p class="mb-2" style="line-height: 1.6;">${l}</p>`).join('');
 
-  // Type-specific styling
-  let gradientBg = 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)';
-  let cardBg = 'rgba(255, 255, 255, 0.9)';
-  let icon = '';
-  let iconColor = '#6c757d';
+  // Type-specific styling with enhanced fintech themes
+  let gradientBg = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'; // Modern blue-purple gradient
+  let cardBg = 'rgba(255, 255, 255, 0.95)';
+  let icon = '📧'; // Default email icon
+  let iconColor = '#007bff';
+  let accentColor = '#007bff';
+  let secondaryIcon = '';
 
   if (type === 'debit') {
-    gradientBg = 'linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%)';
-    cardBg = 'rgba(255, 255, 255, 0.95)';
-    icon = '💸'; // Debit icon
+    gradientBg = 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'; // Soft red-pink for debit
+    cardBg = 'rgba(255, 255, 255, 0.98)';
+    icon = '💳'; // Credit card icon for debit
+    secondaryIcon = '⬇️'; // Down arrow
     iconColor = '#dc3545';
+    accentColor = '#dc3545';
   } else if (type === 'credit') {
-    gradientBg = 'linear-gradient(135deg, #e6ffe6 0%, #ccffcc 100%)';
-    cardBg = 'rgba(255, 255, 255, 0.95)';
-    icon = '💰'; // Credit icon
+    gradientBg = 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'; // Soft green-blue for credit
+    cardBg = 'rgba(255, 255, 255, 0.98)';
+    icon = '💰'; // Money icon
+    secondaryIcon = '⬆️'; // Up arrow
     iconColor = '#28a745';
+    accentColor = '#28a745';
+  } else if (type === 'security') {
+    gradientBg = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'; // Warm orange for security
+    cardBg = 'rgba(255, 255, 255, 0.98)';
+    icon = '🛡️'; // Shield icon
+    iconColor = '#ffc107';
+    accentColor = '#ffc107';
   }
 
   return `<!doctype html>
@@ -36,60 +49,172 @@ function bootstrapEmailTemplate({ title, heading, lines, cta, type = 'default' }
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <link href="${bootstrapCdn}" rel="stylesheet">
+      <link href="${googleFonts}" rel="stylesheet">
       <title>${title}</title>
       <style>
         body {
+          font-family: 'Inter', sans-serif;
           background: ${gradientBg};
-          animation: fadeIn 1s ease-in;
+          background-size: 400% 400%;
+          animation: gradientShift 8s ease infinite, fadeIn 1s ease-in;
+          margin: 0;
+          padding: 0;
         }
         .card {
           background: ${cardBg};
-          backdrop-filter: blur(10px);
+          backdrop-filter: blur(15px);
           border: none;
-          animation: slideIn 0.8s ease-out;
+          border-radius: 15px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+          animation: slideIn 0.8s ease-out, pulse 2s infinite 1s;
+          position: relative;
+          overflow: hidden;
+        }
+        .card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, ${accentColor}, ${iconColor});
+          animation: shimmer 3s ease-in-out infinite;
+        }
+        .icon-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin-bottom: 20px;
         }
         .icon {
-          font-size: 3rem;
+          font-size: 4rem;
           color: ${iconColor};
-          animation: bounce 1.5s infinite;
+          animation: bounce 1.5s infinite, scale 2s ease-in-out infinite alternate;
+          filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+        .secondary-icon {
+          font-size: 2rem;
+          margin-left: 10px;
+          animation: rotate 4s linear infinite;
         }
         .card-title {
+          color: #333;
+          font-weight: 700;
           animation: fadeInUp 0.6s ease-out 0.3s both;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .card-body p {
           animation: fadeInUp 0.6s ease-out 0.5s both;
+          color: #555;
+        }
+        .badge-amount {
+          background: linear-gradient(45deg, ${accentColor}, ${iconColor});
+          color: white;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-weight: 600;
+          animation: glow 2s ease-in-out infinite alternate;
+          display: inline-block;
+          margin: 10px 0;
+        }
+        .btn-primary {
+          background: linear-gradient(45deg, ${accentColor}, ${iconColor});
+          border: none;
+          border-radius: 25px;
+          padding: 12px 30px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          animation: btnPulse 1.5s infinite;
+          transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        .footer {
+          background: rgba(0,0,0,0.05);
+          padding: 15px;
+          border-radius: 0 0 15px 15px;
+          text-align: center;
+          animation: fadeIn 1s ease-in 1s both;
+        }
+        .footer img {
+          width: 30px;
+          height: 30px;
+          margin-right: 10px;
+          animation: rotate 5s linear infinite;
         }
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
         @keyframes slideIn {
-          from { transform: translateY(-20px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+          from { transform: translateY(-30px) scale(0.95); opacity: 0; }
+          to { transform: translateY(0) scale(1); opacity: 1; }
         }
         @keyframes fadeInUp {
-          from { transform: translateY(20px); opacity: 0; }
+          from { transform: translateY(30px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
         @keyframes bounce {
           0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-          40% { transform: translateY(-10px); }
-          60% { transform: translateY(-5px); }
+          40% { transform: translateY(-15px); }
+          60% { transform: translateY(-7px); }
+        }
+        @keyframes scale {
+          from { transform: scale(1); }
+          to { transform: scale(1.05); }
+        }
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(${accentColor.slice(1)}, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(${accentColor.slice(1)}, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(${accentColor.slice(1)}, 0); }
+        }
+        @keyframes glow {
+          from { box-shadow: 0 0 10px ${accentColor}; }
+          to { box-shadow: 0 0 20px ${accentColor}, 0 0 30px ${accentColor}; }
+        }
+        @keyframes btnPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
       </style>
     </head>
     <body>
-      <div class="container py-4">
+      <div class="container py-5">
         <div class="row justify-content-center">
-          <div class="col-md-8">
+          <div class="col-md-8 col-lg-6">
             <div class="card shadow-lg">
-              <div class="card-body text-center">
-                <div class="icon mb-3">${icon}</div>
-                <h4 class="card-title mb-3">${heading}</h4>
-                <div class="mb-3">${itemsHtml}</div>
-                ${cta ? `<div class="mt-3">${cta}</div>` : ''}
-                <hr />
-                <small class="text-muted">This is an automated message from UserPay.</small>
+              <div class="card-body text-center p-4">
+                <div class="icon-container">
+                  <div class="icon">${icon}</div>
+                  ${secondaryIcon ? `<div class="secondary-icon">${secondaryIcon}</div>` : ''}
+                </div>
+                <h3 class="card-title mb-4">${heading}</h3>
+                <div class="mb-4">${itemsHtml}</div>
+                ${cta ? `<div class="mt-4">${cta}</div>` : ''}
+              </div>
+              <div class="footer">
+                <small class="text-muted">
+                  <span style="font-weight: 600; color: ${accentColor};">UserPay</span> - Secure & Seamless Transactions
+                  <br />
+                  <span style="font-size: 0.8rem;">This is an automated message. Please do not reply.</span>
+                </small>
               </div>
             </div>
           </div>
