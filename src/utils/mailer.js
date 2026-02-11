@@ -263,4 +263,59 @@ async function sendVerificationEmail({ user, verificationToken }) {
   return sendMail({ to: user.email, subject: 'Verify your UserPay account', html });
 }
 
-module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail, sendCryptoTopupEmail, sendOTP, sendVerificationEmail };
+async function sendCryptoTransferEmails({ transaction, fromUser, toUser, cryptoType, fromBalance, toBalance }) {
+  const amount = transaction.amount;
+  const transactionDate = new Date(transaction.createdAt).toLocaleString();
+
+  // Debit email to sender
+  const debitHtml = bootstrapEmailTemplate({
+    title: 'Crypto Debit Alert - UserPay',
+    heading: 'Crypto Sent Successfully',
+    lines: [
+      `Dear ${fromUser.username},`,
+      `Thank you for using UserPay! Your crypto account has been debited for a transfer.`,
+      `<strong>Transaction Details:</strong><br>`,
+      `<strong>Crypto Type:</strong> ${cryptoType}<br>`,
+      `<strong>Amount Sent:</strong> ${amount.toLocaleString()} ${cryptoType}<br>`,
+      `<strong>Recipient Address:</strong> ${transaction.toAddress}<br>`,
+      `<strong>Transaction ID:</strong> ${transaction._id}<br>`,
+      `<strong>Date & Time:</strong> ${transactionDate}<br>`,
+      `<strong>Previous Balance:</strong> ${(Number(fromBalance) + Number(amount)).toLocaleString()} ${cryptoType}<br>`,
+      `<strong>New Balance:</strong> ${Number(fromBalance).toLocaleString()} ${cryptoType}<br>`,
+      `If you did not authorize this transaction, please contact our support team immediately at support@userpay.com.`,
+      `We appreciate your trust in UserPay for your financial needs.`
+    ],
+    type: 'debit'
+  });
+
+  const promises = [sendMail({ to: fromUser.email, subject: 'UserPay - Crypto Debit Alert', html: debitHtml })];
+
+  // Credit email to recipient if internal transfer
+  if (toUser) {
+    const creditHtml = bootstrapEmailTemplate({
+      title: 'Crypto Credit Alert - UserPay',
+      heading: 'Crypto Funds Received!',
+      lines: [
+        `Dear ${toUser.username},`,
+        `Great news! You've received crypto funds in your UserPay account.`,
+        `<strong>Transaction Details:</strong><br>`,
+        `<strong>Crypto Type:</strong> ${cryptoType}<br>`,
+        `<strong>Amount Received:</strong> ${amount.toLocaleString()} ${cryptoType}<br>`,
+        `<strong>Sender:</strong> ${fromUser.username}<br>`,
+        `<strong>Transaction ID:</strong> ${transaction._id}<br>`,
+        `<strong>Date & Time:</strong> ${transactionDate}<br>`,
+        `<strong>Previous Balance:</strong> ${(Number(toBalance) - Number(amount)).toLocaleString()} ${cryptoType}<br>`,
+        `<strong>New Balance:</strong> ${Number(toBalance).toLocaleString()} ${cryptoType}<br>`,
+        `Enjoy your funds and continue using UserPay for seamless transactions!`,
+        `If you have any questions, feel free to reach out to our support team.`
+      ],
+      type: 'credit'
+    });
+
+    promises.push(sendMail({ to: toUser.email, subject: 'UserPay - Crypto Credit Alert', html: creditHtml }));
+  }
+
+  return Promise.allSettled(promises);
+}
+
+module.exports = { sendMail, sendTransferEmails, sendLoginEmail, sendTopupEmail, sendCryptoTopupEmail, sendOTP, sendVerificationEmail, sendCryptoTransferEmails };

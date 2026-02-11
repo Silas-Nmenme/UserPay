@@ -401,9 +401,21 @@ const confirmCryptoSend = async (req, res) => {
       txHash = 'usdt_' + Math.random().toString(36).substr(2, 9);
     }
 
-    // Update user balance
+    // Update sender balance
     user.cryptoBalances[cryptoType] -= amount;
     await user.save();
+
+    // Check if recipient is internal (matches another user's crypto address)
+    let recipientUser = null;
+    const recipientQuery = {};
+    recipientQuery[`cryptoAddresses.${cryptoType}`] = toAddress;
+    recipientUser = await User.findOne(recipientQuery);
+
+    if (recipientUser && recipientUser._id.toString() !== user._id.toString()) {
+      // Internal transfer: credit recipient
+      recipientUser.cryptoBalances[cryptoType] = (recipientUser.cryptoBalances[cryptoType] || 0) + amount;
+      await recipientUser.save();
+    }
 
     // Update transaction
     cryptoTransaction.txHash = txHash;
@@ -414,6 +426,24 @@ const confirmCryptoSend = async (req, res) => {
     user.otp = undefined;
     user.otpExpires = undefined;
     await user.save();
+
+    // Send emails non-blocking
+    try {
+      const mailer = require('../utils/mailer');
+      const fromUserFinal = await User.findById(cryptoTransaction.user);
+      const fromBalance = fromUserFinal.cryptoBalances[cryptoType];
+      let toUserFinal = null;
+      let toBalance = null;
+      if (recipientUser) {
+        toUserFinal = await User.findById(recipientUser._id);
+        toBalance = toUserFinal.cryptoBalances[cryptoType];
+      }
+      mailer.sendCryptoTransferEmails({ transaction: cryptoTransaction, fromUser: fromUserFinal, toUser: toUserFinal, cryptoType, fromBalance, toBalance })
+        .then(results => console.info('Crypto transfer email send results:', results))
+        .catch(err => console.error('Crypto transfer email send error:', err));
+    } catch (err) {
+      console.error('Failed to send crypto transfer emails:', err);
+    }
 
     res.json({ message: 'Crypto sent successfully', transaction: cryptoTransaction });
   } catch (error) {
