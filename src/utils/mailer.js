@@ -16,7 +16,7 @@ function bootstrapEmailTemplate({ title, heading, lines, cta, type = 'default' }
   // Type-specific styling with enhanced fintech themes
   let gradientBg = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'; // Modern blue-purple gradient
   let cardBg = 'rgba(255, 255, 255, 0.95)';
-  let icon = '📧'; // Default email icon
+  //let icon = '📧'; // Default email icon
   let iconColor = '#007bff';
   let accentColor = '#007bff';
   let secondaryIcon = '';
