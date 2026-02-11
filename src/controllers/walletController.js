@@ -94,9 +94,21 @@ const confirmTransfer = async (req, res) => {
   }
 
   const fromUser = await User.findById(transaction.fromUser);
+  if (fromUser.otpLockUntil && new Date() < fromUser.otpLockUntil) {
+    return res.status(429).json({ message: 'Too many OTP attempts. Try again later.' });
+  }
   if (!fromUser.otp || fromUser.otp !== otp || new Date() > fromUser.otpExpires) {
+    fromUser.otpAttempts = (fromUser.otpAttempts || 0) + 1;
+    if (fromUser.otpAttempts >= 5) {
+      fromUser.otpLockUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour lock
+      fromUser.otpAttempts = 0;
+    }
+    await fromUser.save();
     return res.status(401).json({ message: 'Invalid or expired OTP' });
   }
+  // Reset attempts on success
+  fromUser.otpAttempts = 0;
+  fromUser.otpLockUntil = undefined;
 
   const session = await mongoose.startSession();
   let savedTransaction = null;
@@ -381,9 +393,21 @@ const confirmCryptoSend = async (req, res) => {
   }
 
   const user = await User.findById(cryptoTransaction.user);
+  if (user.otpLockUntil && new Date() < user.otpLockUntil) {
+    return res.status(429).json({ message: 'Too many OTP attempts. Try again later.' });
+  }
   if (!user.otp || user.otp !== otp || new Date() > user.otpExpires) {
+    user.otpAttempts = (user.otpAttempts || 0) + 1;
+    if (user.otpAttempts >= 5) {
+      user.otpLockUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour lock
+      user.otpAttempts = 0;
+    }
+    await user.save();
     return res.status(401).json({ message: 'Invalid or expired OTP' });
   }
+  // Reset attempts on success
+  user.otpAttempts = 0;
+  user.otpLockUntil = undefined;
 
   // Simulate crypto send (in real implementation, integrate with blockchain)
   try {

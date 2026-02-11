@@ -42,7 +42,9 @@ const userSchema = new mongoose.Schema({
     USDT: { type: String }
   },
   otp: String,
-  otpExpires: Date
+  otpExpires: Date,
+  otpAttempts: { type: Number, default: 0 },
+  otpLockUntil: Date
 }, { timestamps: true });
 
 // Password hashing is now handled in the controller

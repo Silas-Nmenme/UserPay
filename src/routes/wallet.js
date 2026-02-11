@@ -1,12 +1,13 @@
 const express = require('express');
 const { body } = require('express-validator');
 const walletController = require('../controllers/walletController');
+const { walletRateLimiter, sensitiveOperationLimiter, userBasedLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
 // Get wallet balance
 // This route expects `req.user` to be set by the central auth middleware.
-router.get('/balance', walletController.getBalance);
+router.get('/balance', walletRateLimiter, walletController.getBalance);
 
 // Transfer funds
 router.post('/transfer', [
@@ -15,7 +16,7 @@ router.post('/transfer', [
 ], walletController.transferFunds);
 
 // Confirm transfer with OTP
-router.post('/transfer/confirm', [
+router.post('/transfer/confirm', sensitiveOperationLimiter, userBasedLimiter, [
   body('transactionId').isMongoId(),
   body('otp').isLength({ min: 6, max: 6 }).isNumeric()
 ], walletController.confirmTransfer);
@@ -24,7 +25,7 @@ router.post('/transfer/confirm', [
 router.post('/topup', [ body('amount').isFloat({ gt: 0 }) ], walletController.topup);
 
 // Get crypto balances
-router.get('/crypto/balance', walletController.getCryptoBalance);
+router.get('/crypto/balance', walletRateLimiter, walletController.getCryptoBalance);
 
 // Send crypto
 router.post('/crypto/send', [
@@ -42,7 +43,7 @@ router.post('/crypto/send/confirm', [
 ], walletController.confirmCryptoSend);
 
 // Get crypto transaction history
-ve
+router.get('/crypto/transactions', walletRateLimiter, walletController.getCryptoTransactions);
 
 // Demo crypto top-up: increases authenticated user's crypto balance and records a deposit transaction
 router.post('/crypto/topup', [
@@ -51,6 +52,6 @@ router.post('/crypto/topup', [
 ], walletController.cryptoTopup);
 
 // Get transaction history
-router.get('/transactions', walletController.getTransactions);
+router.get('/transactions', walletRateLimiter, walletController.getTransactions);
 
 module.exports = router;
